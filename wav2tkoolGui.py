@@ -8,9 +8,28 @@ import subprocess
 import platform
 import tkinter as tk
 import tkinter.filedialog
+from configparser import ConfigParser 
+import re
 
 def main():
 
+	configPath = Path("config.ini")
+	iniFile=ConfigParser()
+	if not configPath.exists():
+		iniFile.set('DEFAULT', 'oggArgs', '')
+		iniFile.set('DEFAULT', 'm4aArgs', '')
+		with open(configPath, 'w') as f:
+			iniFile.write(f)
+
+	iniFile.read(configPath)
+
+	addArg = {}
+	addArg["ogg"] = re.split(" +",iniFile.get('DEFAULT', 'oggArgs',))
+	addArg["m4a"] = re.split(" +",iniFile.get('DEFAULT', 'm4aArgs',))
+
+	for key in addArg:
+		if addArg[key][0] == "":
+			addArg[key].pop(0)
 
 	if platform.system() == "Windows":
 		isWindows = True
@@ -28,7 +47,7 @@ def main():
 	ffmpegPath = Path(Path(__file__).resolve().parent / ffmpegFileName).resolve()
 
 	if not ffmpegPath.exists():
-		print(ffmpegFileName +" が見つかりません")
+#		print(ffmpegFileName +" が見つかりません")
 		tkinter.messagebox.showwarning("", ffmpegFileName +" が見つかりません")
 		return
 
@@ -38,17 +57,16 @@ def main():
 	fileType = [("", "*.wav")]
 	dirPath = Path(Path(__file__))
 	files = tk.filedialog.askopenfilenames(filetypes=fileType, initialdir=dirPath)
-	print(files)
 
 	for f in files:
-		wav2tkool(Path(f),ffmpegPath)
+		wav2tkool(Path(f),ffmpegPath, addArg)
 
 
 #	targetFreq = args.freq
 
 #	targetPath = inPath.with_stem(inPath.stem + "_"+str(targetFreq))
 
-def wav2tkool(inPath,ffmpegPath):
+def wav2tkool(inPath,ffmpegPath, addArg):
 
 	srcWav = wavFile.WavFile()
 	srcWav.read(inPath)
@@ -81,13 +99,22 @@ def wav2tkool(inPath,ffmpegPath):
 #	targetWav.write(inPath)
 #	targetPath.unlink()
 
+	loopArgs = ['-metadata','LOOPSTART=' + str(loopStartPoint),'-metadata','LOOPEND=' + str(loopEndPoint),'-metadata','LOOPLENGTH=' + str(loopLength)]
 
+	cmd = {}
 
+	cmd["ogg"] = [ffmpegPath, "-y","-i",str(inPath),"-vn","-acodec","libvorbis", "-f", "ogg",inPath.with_suffix(".ogg")]
+	cmd["m4a"] = [ffmpegPath, "-y","-i",str(inPath),"-vn","-acodec","aac"      , "-f", "mp4",inPath.with_suffix(".m4a")]
 
 	if loopEnable:
-		cp = subprocess.run([ffmpegPath, "-y","-i",str(inPath),"-vn",'-metadata','LOOPSTART=' + str(loopStartPoint),'-metadata','LOOPEND=' + str(loopEndPoint),'-metadata','LOOPLENGTH=' + str(loopLength),"-acodec","libvorbis", "-f", "ogg",inPath.with_suffix(".ogg")])
-		cp = subprocess.run([ffmpegPath, "-y","-i",str(inPath),"-vn",'-metadata','LOOPSTART=' + str(loopStartPoint),'-metadata','LOOPEND=' + str(loopEndPoint),'-metadata','LOOPLENGTH=' + str(loopLength),"-acodec","aac"      , "-f", "mp4",inPath.with_suffix(".m4a")])
+		for key in cmd:
+			cmd[key][4:4] = loopArgs
 
+	for key in cmd:
+		cmd[key][4:4] = addArg[key]
+		cp = subprocess.run(cmd[key])
+
+	if loopEnable:
 		m4a = m4aFile.M4aFile()
 		m4a.read(inPath.with_suffix(".m4a"))
 		m4a.Chunks["moov"]["udta"]["meta"]["ilst"].add("----")
@@ -110,11 +137,6 @@ def wav2tkool(inPath,ffmpegPath):
 		m4a.Chunks["moov"]["udta"]["meta"]["ilst"][-1]["data"].setData(str(loopEndPoint))
 
 		m4a.write(inPath.with_suffix(".m4a"))
-
-	else:
-		cp = subprocess.run([ffmpegPath, "-y","-i",str(inPath),"-vn","-acodec","libvorbis", "-f", "ogg",inPath.with_suffix(".ogg")])
-		cp = subprocess.run([ffmpegPath, "-y","-i",str(inPath),"-vn","-acodec","aac"      , "-f", "mp4",inPath.with_suffix(".m4a")])
-
 
 
 if __name__ == "__main__":
