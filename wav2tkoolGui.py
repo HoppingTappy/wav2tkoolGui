@@ -99,7 +99,6 @@ def wav2tkool(inPath,ffmpegPath, addArg):
 #	targetWav.write(inPath)
 #	targetPath.unlink()
 
-	loopArgs = ['-metadata','LOOPSTART=' + str(loopStartPoint),'-metadata','LOOPEND=' + str(loopEndPoint),'-metadata','LOOPLENGTH=' + str(loopLength)]
 
 	cmd = {}
 
@@ -107,6 +106,7 @@ def wav2tkool(inPath,ffmpegPath, addArg):
 	cmd["m4a"] = [ffmpegPath, "-y","-i",str(inPath),"-vn","-acodec","aac"      , "-f", "mp4",inPath.with_suffix(".m4a")]
 
 	if loopEnable:
+		loopArgs = ['-metadata','LOOPSTART=' + str(loopStartPoint),'-metadata','LOOPEND=' + str(loopEndPoint),'-metadata','LOOPLENGTH=' + str(loopLength)]
 		for key in cmd:
 			cmd[key][4:4] = loopArgs
 
